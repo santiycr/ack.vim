@@ -1,35 +1,56 @@
-" NOTE: You must, of course, install the ack script
-"       in your path.
-" On Debian / Ubuntu:
-"   sudo apt-get install ack-grep
-" With MacPorts:
-"   sudo port install p5-app-ack
-" With Homebrew:
-"   brew install ack
+" NOTE: You must, of course, install grin in your path or a virtualenv called
+" grin
+"
+" Globally:
+"
+" $ sudo pip install grin
+"
+" In a Virtualenv:
+"
+" $ mkvirtualenv grin
+" $ pip install grin
 
-" Location of the ack utility
-if !exists("g:ackprg")
-  let s:ackcommand = executable('ack-grep') ? 'ack-grep' : 'ack'
-  let g:ackprg=s:ackcommand." -H --nocolor --nogroup --column"
+" Location of the grin utility
+if !exists("g:grinprg")
+  let s:grincommand = executable('grin') ? 'grin' : '$HOME/.virtualenvs/grin/bin/grin'
+  let g:grinprg=s:grincommand." --emacs"
 endif
 
-if !exists("g:ack_apply_qmappings")
-  let g:ack_apply_qmappings = !exists("g:ack_qhandler")
+if !exists("g:grin_apply_qmappings")
+  let g:grin_apply_qmappings = !exists("g:grin_qhandler")
 endif
 
-if !exists("g:ack_apply_lmappings")
-  let g:ack_apply_lmappings = !exists("g:ack_lhandler")
+if !exists("g:grin_apply_lmappings")
+  let g:grin_apply_lmappings = !exists("g:grin_lhandler")
 endif
 
-if !exists("g:ack_qhandler")
-  let g:ack_qhandler="botright copen"
+if !exists("g:grin_qhandler")
+  let g:grin_qhandler="botright copen"
 endif
 
-if !exists("g:ack_lhandler")
-  let g:ack_lhandler="botright lopen"
+if !exists("g:grin_lhandler")
+  let g:grin_lhandler="botright lopen"
 endif
 
-function! s:Ack(cmd, args)
+if !exists("g:grin_search_root")
+  let g:grin_search_root = 1
+endif
+
+if !exists("g:grinhighlight")
+  let g:grinhighlight = 1
+endif
+
+function! s:setcwd()
+  let cph = expand('%:p:h', 1)
+  if cph =~ '^.\+://' | retu | en
+  for mkr in ['.git/', '.hg/', '.svn/', '.bzr/', '_darcs/', '.vimprojects']
+    let wd = call('find'.(mkr =~ '/$' ? 'dir' : 'file'), [mkr, cph.';'])
+    if wd != '' | let &acd = 0 | brea | en
+  endfo
+  exe 'lc!' fnameescape(wd == '' ? cph : substitute(wd, mkr.'$', '.', ''))
+endfunction
+
+function! s:Grin(cmd, args)
   redraw
   echo "Searching ..."
 
@@ -42,28 +63,33 @@ function! s:Ack(cmd, args)
 
   " Format, used to manage column jump
   if a:cmd =~# '-g$'
-    let g:ackformat="%f"
+    let g:grinformat="%f"
   else
-    let g:ackformat="%f:%l:%c:%m"
+    let g:grinformat="%f:%l:%m"
   end
 
   let grepprg_bak=&grepprg
   let grepformat_bak=&grepformat
+  let cwd_bak = expand('%:p:h', 1)
+  if g:grin_search_root
+    call s:setcwd()
+  end
   try
-    let &grepprg=g:ackprg
-    let &grepformat=g:ackformat
+    let &grepprg=g:grinprg
+    let &grepformat=g:grinformat
     silent execute a:cmd . " " . escape(l:grepargs, '|')
   finally
     let &grepprg=grepprg_bak
     let &grepformat=grepformat_bak
+    exe 'lc!' fnameescape(cwd_bak)
   endtry
 
   if a:cmd =~# '^l'
-    exe g:ack_lhandler
-    let l:apply_mappings = g:ack_apply_lmappings
+    exe g:grin_lhandler
+    let l:apply_mappings = g:grin_apply_lmappings
   else
-    exe g:ack_qhandler
-    let l:apply_mappings = g:ack_apply_qmappings
+    exe g:grin_qhandler
+    let l:apply_mappings = g:grin_apply_qmappings
   endif
 
   if l:apply_mappings
@@ -79,7 +105,7 @@ function! s:Ack(cmd, args)
   endif
 
   " If highlighting is on, highlight the search keyword.
-  if exists("g:ackhighlight")
+  if g:grinhighlight
     let @/=a:args
     set hlsearch
   end
@@ -87,11 +113,11 @@ function! s:Ack(cmd, args)
   redraw!
 endfunction
 
-function! s:AckFromSearch(cmd, args)
+function! s:GrinFromSearch(cmd, args)
   let search =  getreg('/')
   " translate vim regular expression to perl regular expression.
   let search = substitute(search,'\(\\<\|\\>\)','\\b','g')
-  call s:Ack(a:cmd, '"' .  search .'" '. a:args)
+  call s:Grin(a:cmd, '"' .  search .'" '. a:args)
 endfunction
 
 function! s:GetDocLocations()
@@ -105,16 +131,16 @@ function! s:GetDocLocations()
     return dp
 endfunction
 
-function! s:AckHelp(cmd,args)
+function! s:GrinHelp(cmd,args)
     let args = a:args.' '.s:GetDocLocations()
-    call s:Ack(a:cmd,args)
+    call s:Grin(a:cmd,args)
 endfunction
 
-command! -bang -nargs=* -complete=file Ack call s:Ack('grep<bang>',<q-args>)
-command! -bang -nargs=* -complete=file AckAdd call s:Ack('grepadd<bang>', <q-args>)
-command! -bang -nargs=* -complete=file AckFromSearch call s:AckFromSearch('grep<bang>', <q-args>)
-command! -bang -nargs=* -complete=file LAck call s:Ack('lgrep<bang>', <q-args>)
-command! -bang -nargs=* -complete=file LAckAdd call s:Ack('lgrepadd<bang>', <q-args>)
-command! -bang -nargs=* -complete=file AckFile call s:Ack('grep<bang> -g', <q-args>)
-command! -bang -nargs=* -complete=help AckHelp call s:AckHelp('grep<bang>',<q-args>)
-command! -bang -nargs=* -complete=help LAckHelp call s:AckHelp('lgrep<bang>',<q-args>)
+command! -bang -nargs=* -complete=file Grin call s:Grin('grep<bang>',<q-args>)
+command! -bang -nargs=* -complete=file GrinAdd call s:Grin('grepadd<bang>', <q-args>)
+command! -bang -nargs=* -complete=file GrinFromSearch call s:GrinFromSearch('grep<bang>', <q-args>)
+command! -bang -nargs=* -complete=file LGrin call s:Grin('lgrep<bang>', <q-args>)
+command! -bang -nargs=* -complete=file LGrinAdd call s:Grin('lgrepadd<bang>', <q-args>)
+command! -bang -nargs=* -complete=file GrinFile call s:Grin('grep<bang> -g', <q-args>)
+command! -bang -nargs=* -complete=help GrinHelp call s:GrinHelp('grep<bang>',<q-args>)
+command! -bang -nargs=* -complete=help LGrinHelp call s:GrinHelp('lgrep<bang>',<q-args>)
