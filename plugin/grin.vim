@@ -1,13 +1,18 @@
 " NOTE: You must, of course, install grin in your path or a virtualenv called
 " grin
 "
-" Globally:
+" Global install:
 "
 " $ sudo pip install grin
+"
+" User install:
+"
+" $ pip install --user grin
 "
 " In a Virtualenv:
 "
 " $ mkvirtualenv grin
+" $ workon grin
 " $ pip install grin
 
 " Location of the grin utility
