@@ -21,6 +21,7 @@ User install:
     $ pip install --user grin
 
 In a Virtualenv:
+
     $ mkvirtualenv grin
     $ workon grin
     $ pip install grin
